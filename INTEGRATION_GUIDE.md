@@ -4,75 +4,70 @@
 
 This guide explains how to integrate the Quimbi Intelligence Backend with your e-commerce platform. The Intelligence Backend provides customer behavioral clustering, segmentation, and AI-powered insights.
 
+**Platform Agnostic**: Works with any hosting provider, database, and e-commerce platform.
+
 ---
 
 ## Prerequisites
 
-### Required External Services:
-1. **PostgreSQL Database** (v14+) - For storing customer and behavioral data
-2. **E-commerce Platform** - Shopify, WooCommerce, etc. (data source)
-3. **Optional: Redis** - For caching (improves performance)
-4. **Optional: Anthropic API** - For AI-powered segment naming
+### Required:
+1. **SQL Database** - PostgreSQL, MySQL, or compatible RDBMS
+2. **Python 3.11+** runtime environment
+3. **E-commerce Platform** - Any source of customer/order data (Shopify, WooCommerce, Magento, custom, etc.)
+
+### Optional (Performance):
+- **Redis** - For caching (improves response times)
+- **Anthropic API** - For AI-powered segment naming (can run without)
 
 ---
 
 ## Database Schema Requirements
 
-The Intelligence Backend requires specific database schemas. You have two options:
+The Intelligence Backend needs customer and order data. It works with your existing database or a separate analytics database.
 
-### Option A: Use Provided Schema (Recommended for New Deployments)
+### Core Tables Required
 
-Run the migration scripts to create required schemas:
+You can either:
+- **A)** Use our schema (copy to your database)
+- **B)** Map your existing tables (modify configuration)
 
-```bash
-# Navigate to migrations directory
-cd backend/database/migrations
+#### Required Data Structure:
 
-# Connect to your PostgreSQL database
-psql $DATABASE_URL
-
-# Run schema creation
-\i create_temporal_snapshots_schema.sql
-```
-
-### Option B: Map to Your Existing Schema
-
-The Intelligence Backend expects these core tables in the `ecommerce` schema:
-
-#### Required Tables:
-
-**1. `ecommerce.customers`**
+**1. Customers Table**
 ```sql
-CREATE TABLE ecommerce.customers (
-    id BIGINT PRIMARY KEY,           -- Unique customer ID
-    email VARCHAR(255) UNIQUE,        -- Customer email
+-- Table name: configurable (default: ecommerce.customers)
+CREATE TABLE customers (
+    id BIGINT PRIMARY KEY,           -- Your unique customer ID
+    email VARCHAR(255),              -- Customer email
     first_name VARCHAR(100),
     last_name VARCHAR(100),
-    total_spent DECIMAL(10,2),        -- Lifetime value
-    orders_count INTEGER,             -- Total orders placed
+    total_spent DECIMAL(10,2),       -- Lifetime spend
+    orders_count INTEGER,            -- Total orders
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );
 ```
 
-**2. `ecommerce.orders`**
+**2. Orders Table**
 ```sql
-CREATE TABLE ecommerce.orders (
+-- Table name: configurable (default: ecommerce.orders)
+CREATE TABLE orders (
     id BIGINT PRIMARY KEY,
-    customer_id BIGINT REFERENCES ecommerce.customers(id),
+    customer_id BIGINT,              -- Foreign key to customers
     order_number VARCHAR(50),
     total_price DECIMAL(10,2),
     created_at TIMESTAMP,
-    financial_status VARCHAR(50),     -- 'paid', 'pending', etc.
-    fulfillment_status VARCHAR(50)    -- 'fulfilled', 'unfulfilled'
+    financial_status VARCHAR(50),
+    fulfillment_status VARCHAR(50)
 );
 ```
 
-**3. `ecommerce.order_line_items`**
+**3. Order Line Items Table**
 ```sql
-CREATE TABLE ecommerce.order_line_items (
+-- Table name: configurable (default: ecommerce.order_line_items)
+CREATE TABLE order_line_items (
     id BIGINT PRIMARY KEY,
-    order_id BIGINT REFERENCES ecommerce.orders(id),
+    order_id BIGINT,                 -- Foreign key to orders
     product_id BIGINT,
     product_title VARCHAR(255),
     quantity INTEGER,
@@ -81,66 +76,162 @@ CREATE TABLE ecommerce.order_line_items (
 );
 ```
 
-**4. `ecommerce.customer_intelligence` (Created by Intelligence Backend)**
+**4. Customer Intelligence Table** (Auto-created by Intelligence Backend)
 ```sql
-CREATE TABLE ecommerce.customer_intelligence (
-    customer_id BIGINT PRIMARY KEY REFERENCES ecommerce.customers(id),
-    archetype_id VARCHAR(100),        -- Behavioral segment ID
-    archetype_name VARCHAR(255),      -- Human-readable segment name
-    archetype_level INTEGER,          -- Hierarchy level
-    ltv DECIMAL(10,2),               -- Lifetime value prediction
-    churn_risk DECIMAL(5,4),         -- Churn probability (0-1)
-    cluster_confidence DECIMAL(5,4), -- How well customer fits segment
+-- This table stores the clustering results
+CREATE TABLE customer_intelligence (
+    customer_id BIGINT PRIMARY KEY,
+    archetype_id VARCHAR(100),       -- Segment identifier
+    archetype_name VARCHAR(255),     -- Human-readable segment name
+    archetype_level INTEGER,         -- Hierarchy level
+    ltv DECIMAL(10,2),              -- Predicted lifetime value
+    churn_risk DECIMAL(5,4),        -- Churn probability (0-1)
+    cluster_confidence DECIMAL(5,4), -- Segment fit score
     updated_at TIMESTAMP DEFAULT NOW()
 );
+```
+
+### Using Your Existing Schema
+
+If you have existing tables with different names/structure, update the configuration:
+
+```python
+# backend/core/config.py or environment variables
+CUSTOMERS_TABLE = "your_schema.your_customers_table"
+ORDERS_TABLE = "your_schema.your_orders_table"
+LINE_ITEMS_TABLE = "your_schema.your_line_items_table"
 ```
 
 ---
 
 ## Data Sync Strategy
 
-The Intelligence Backend **reads data** but **does not write to e-commerce tables**. You need a sync process to populate the database.
+The Intelligence Backend **reads** customer/order data. You need to populate the database with your e-commerce data.
 
-### Recommended Approach:
+### Sync Options:
 
-**Use a separate sync service** (like the included `azure-sync-cron` package):
+#### Option 1: Direct Database Connection (Best for existing data)
+Point the Intelligence Backend to your existing e-commerce database (read-only recommended).
 
+#### Option 2: ETL Pipeline (Best for separation)
+Create a sync script that copies data from your e-commerce platform to an analytics database.
+
+**Example sync script:**
 ```python
-# Example sync script
 import asyncpg
-import shopify
+from your_ecommerce_api import get_customers, get_orders
 
-async def sync_shopify_to_database():
-    # Connect to database
+async def sync_data():
     conn = await asyncpg.connect(DATABASE_URL)
     
-    # Fetch customers from Shopify
-    customers = shopify.Customer.find()
-    
+    # Sync customers
+    customers = get_customers()  # From Shopify/WooCommerce/etc.
     for customer in customers:
         await conn.execute("""
-            INSERT INTO ecommerce.customers (id, email, first_name, last_name, total_spent, orders_count, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO customers (id, email, first_name, total_spent, orders_count)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (id) DO UPDATE SET
-                email = EXCLUDED.email,
                 total_spent = EXCLUDED.total_spent,
-                orders_count = EXCLUDED.orders_count,
-                updated_at = NOW()
+                orders_count = EXCLUDED.orders_count
         """, customer.id, customer.email, ...)
     
     await conn.close()
-
-# Run daily via cron
 ```
 
-**Sync Frequency:**
-- **Real-time**: For high-value customers (webhooks)
-- **Hourly**: For order data
-- **Daily**: For full customer sync
+**Sync Frequency Recommendations:**
+- **Real-time** - High-value customer updates (via webhooks)
+- **Hourly** - Order data
+- **Daily** - Full customer base refresh
+
+---
+
+## Deployment
+
+### Environment Variables
+
+```bash
+# Database (REQUIRED)
+DATABASE_URL=postgresql://user:pass@host:port/database
+# Or for MySQL: mysql://user:pass@host:port/database
+
+# API Authentication (REQUIRED)
+API_KEY=your-secret-api-key-here
+
+# AI Features (OPTIONAL)
+ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxx
+
+# Cache (OPTIONAL - improves performance)
+REDIS_URL=redis://host:6379/0
+
+# Feature Flags (OPTIONAL)
+ENABLE_DYNAMIC_K_RANGE=true
+CLUSTERING_ROBUST_SCALING=true
+```
+
+### Deployment Options
+
+#### Option A: Docker (Any Platform)
+
+```dockerfile
+# Use provided Dockerfile
+docker build -t intelligence-backend .
+docker run -p 8000:8000 \
+  -e DATABASE_URL=postgresql://... \
+  -e API_KEY=your-key \
+  intelligence-backend
+```
+
+#### Option B: Cloud Platform (Railway, Render, Heroku, AWS, etc.)
+
+**Railway:**
+```bash
+# Auto-detects Python/FastAPI
+railway up
+```
+
+**Render/Heroku:**
+```bash
+# Uses Procfile or detects uvicorn
+git push heroku main
+```
+
+**AWS/GCP/Azure:**
+- Deploy as Container (ECS, Cloud Run, App Service)
+- Or as Function (Lambda, Cloud Functions, Azure Functions)
+
+#### Option C: Traditional Server (VPS, Bare Metal)
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run with systemd/supervisor
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+
+**systemd service example:**
+```ini
+[Unit]
+Description=Intelligence Backend
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Environment="DATABASE_URL=postgresql://..."
+Environment="API_KEY=your-key"
+ExecStart=/usr/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
 
 ---
 
 ## API Endpoints
+
+All endpoints require authentication via `X-API-Key` header.
 
 ### Health Check
 ```bash
@@ -155,8 +246,6 @@ Response:
 }
 ```
 
----
-
 ### Customer Intelligence
 
 **Get Customer Profile**
@@ -169,7 +258,7 @@ Headers:
 Response:
 ```json
 {
-  "customer_id": "7408502702335",
+  "customer_id": "12345",
   "email": "customer@example.com",
   "archetype": {
     "id": "high_value_repeat",
@@ -183,8 +272,6 @@ Response:
 }
 ```
 
----
-
 **Search Customers**
 ```bash
 GET /api/mcp/customers/search?query=john&limit=10
@@ -192,9 +279,7 @@ Headers:
   X-API-Key: your-api-key
 ```
 
----
-
-**Get Customer Segments**
+**Get All Segments**
 ```bash
 GET /api/mcp/segments
 Headers:
@@ -208,7 +293,6 @@ Response:
     {
       "id": "high_value_repeat",
       "name": "Loyal High Spenders",
-      "level": 2,
       "customer_count": 1247,
       "avg_ltv": 3200.00,
       "characteristics": {
@@ -221,11 +305,9 @@ Response:
 }
 ```
 
----
+### Clustering & Analysis
 
-### Clustering & Segmentation
-
-**Run Clustering**
+**Trigger Clustering Analysis**
 ```bash
 POST /api/admin/cluster
 Headers:
@@ -238,124 +320,94 @@ Body:
 }
 ```
 
-This triggers behavioral clustering analysis on your customer base.
+This runs behavioral clustering on your customer base and updates the `customer_intelligence` table.
 
 ---
 
-## Environment Variables
+## Integration Examples
 
-Required configuration:
-
-```bash
-# Database (REQUIRED)
-DATABASE_URL=postgresql://user:pass@host:port/dbname
-
-# API Authentication (REQUIRED)
-API_KEY=your-secret-api-key-here
-
-# AI Segment Naming (OPTIONAL - improves segment descriptions)
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxx
-
-# Redis Cache (OPTIONAL - improves performance)
-REDIS_URL=redis://localhost:6379/0
-
-# Feature Flags
-ENABLE_DYNAMIC_K_RANGE=true
-CLUSTERING_ROBUST_SCALING=true
-```
-
----
-
-## Deployment on Railway
-
-### Step 1: Create New Service
-
-1. Go to Railway dashboard
-2. Click "New Project" → "Deploy from GitHub"
-3. Select your intelligence-backend repository
-4. Railway will auto-detect FastAPI
-
-### Step 2: Configure Environment
-
-Add environment variables in Railway dashboard:
-
-```
-DATABASE_URL=postgresql://... (from Railway Postgres addon)
-API_KEY=generate-secure-key-here
-ANTHROPIC_API_KEY=sk-ant-... (optional)
-```
-
-### Step 3: Deploy
-
-Railway will automatically:
-- Build using `railway.json` config
-- Install dependencies from `requirements.txt`
-- Start with: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-
-### Step 4: Verify
-
-```bash
-curl https://your-app.railway.app/health
-```
-
----
-
-## Business Logic Integration
-
-### Example: Get Customer Recommendations
+### Example 1: E-commerce Platform Integration
 
 ```python
+# In your e-commerce application
 import httpx
 
 async def get_customer_insights(customer_id: str):
-    """Fetch customer intelligence for personalized experiences"""
+    """Fetch intelligence for personalized experiences"""
     
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"https://intelligence-backend.railway.app/api/mcp/customers/{customer_id}",
-            headers={"X-API-Key": INTELLIGENCE_API_KEY}
+            f"{INTELLIGENCE_API_URL}/api/mcp/customers/{customer_id}",
+            headers={"X-API-Key": API_KEY}
         )
         
         if response.status_code == 200:
             data = response.json()
             
-            # Use insights for business logic
+            # Business logic based on intelligence
             if data['churn_risk'] > 0.7:
-                # Send retention email
-                send_winback_campaign(customer_id)
+                # High churn risk - send retention offer
+                trigger_winback_campaign(customer_id)
             
             if data['ltv'] > 1000:
-                # Offer VIP perks
+                # High value - offer premium perks
                 upgrade_to_vip(customer_id)
             
             return data
 ```
 
----
-
-### Example: Product Recommendations
+### Example 2: Product Recommendations
 
 ```python
-async def get_segment_trends(archetype_id: str):
-    """Get popular products for a customer segment"""
+async def get_segment_recommendations(customer_id: str):
+    """Get product recommendations based on segment behavior"""
     
-    # Query database for segment behavior
+    # Get customer's segment
+    customer = await get_customer_insights(customer_id)
+    archetype_id = customer['archetype']['id']
+    
+    # Query database for segment trends
     async with database.acquire() as conn:
         products = await conn.fetch("""
             SELECT 
                 ol.product_title,
                 COUNT(*) as purchase_count,
                 AVG(ol.price) as avg_price
-            FROM ecommerce.order_line_items ol
-            JOIN ecommerce.orders o ON ol.order_id = o.id
-            JOIN ecommerce.customer_intelligence ci ON o.customer_id = ci.customer_id
+            FROM order_line_items ol
+            JOIN orders o ON ol.order_id = o.id
+            JOIN customer_intelligence ci ON o.customer_id = ci.customer_id
             WHERE ci.archetype_id = $1
+              AND o.created_at > NOW() - INTERVAL '90 days'
             GROUP BY ol.product_title
             ORDER BY purchase_count DESC
             LIMIT 10
         """, archetype_id)
     
     return products
+```
+
+### Example 3: Automated Campaigns
+
+```python
+async def identify_campaign_targets():
+    """Find customers for targeted campaigns"""
+    
+    # Get all segments
+    response = await httpx.get(
+        f"{INTELLIGENCE_API_URL}/api/mcp/segments",
+        headers={"X-API-Key": API_KEY}
+    )
+    
+    segments = response.json()['segments']
+    
+    for segment in segments:
+        if segment['avg_ltv'] > 2000 and segment['customer_count'] > 100:
+            # High-value segment - create VIP campaign
+            create_vip_campaign(segment['id'])
+        
+        elif segment.get('churn_risk_avg', 0) > 0.6:
+            # At-risk segment - create retention campaign
+            create_retention_campaign(segment['id'])
 ```
 
 ---
@@ -366,29 +418,54 @@ async def get_segment_trends(archetype_id: str):
 
 ```bash
 # Check API health
-curl -X GET https://your-backend.railway.app/health
+curl https://your-api.com/health
 
 # Check clustering status
-curl -X GET https://your-backend.railway.app/api/admin/cluster/status \
-  -H "X-API-Key: your-admin-key"
+curl -H "X-API-Key: your-key" https://your-api.com/api/admin/cluster/status
 ```
 
 ### Scheduled Tasks
 
-Set up cron jobs for:
+Recommended cron jobs:
 
-1. **Daily Clustering** (if data changes frequently)
 ```bash
-0 2 * * * curl -X POST https://your-backend.railway.app/api/admin/cluster \
-  -H "X-API-Key: your-admin-key"
-```
+# Daily clustering update (adjust frequency based on data volume)
+0 2 * * * curl -X POST https://your-api.com/api/admin/cluster \
+  -H "X-API-Key: your-admin-key" \
+  -d '{"sample_size": 1000}'
 
-2. **Weekly Full Re-segmentation**
-```bash
-0 3 * * 0 curl -X POST https://your-backend.railway.app/api/admin/cluster \
+# Weekly full re-segmentation
+0 3 * * 0 curl -X POST https://your-api.com/api/admin/cluster \
   -H "X-API-Key: your-admin-key" \
   -d '{"sample_size": 5000}'
 ```
+
+---
+
+## Performance Optimization
+
+### Database Indexes (Critical)
+
+```sql
+-- Customer lookup performance
+CREATE INDEX idx_customer_email ON customers(email);
+CREATE INDEX idx_customer_created ON customers(created_at);
+
+-- Order queries
+CREATE INDEX idx_orders_customer ON orders(customer_id);
+CREATE INDEX idx_orders_created ON orders(created_at);
+CREATE INDEX idx_line_items_order ON order_line_items(order_id);
+
+-- Intelligence lookups
+CREATE INDEX idx_intelligence_archetype ON customer_intelligence(archetype_id);
+CREATE INDEX idx_intelligence_updated ON customer_intelligence(updated_at);
+```
+
+### Caching
+
+1. **Enable Redis** - 10x faster response times for frequently accessed data
+2. **Database connection pooling** - Configured automatically by asyncpg
+3. **Sample-based clustering** - Start with 1000 customers, increase gradually
 
 ---
 
@@ -398,51 +475,91 @@ Set up cron jobs for:
 
 ```bash
 # Test database connectivity
-psql $DATABASE_URL -c "SELECT COUNT(*) FROM ecommerce.customers;"
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM customers;"
+# Or for MySQL:
+mysql -h host -u user -p -e "SELECT COUNT(*) FROM customers;"
 ```
 
-### Missing Customer Intelligence
+### Missing Intelligence Data
 
-If customers don't have intelligence data:
+If customers don't have segment data:
 
-1. Check if clustering has run:
 ```sql
-SELECT COUNT(*) FROM ecommerce.customer_intelligence;
+-- Check if clustering has run
+SELECT COUNT(*) FROM customer_intelligence;
 ```
 
-2. Manually trigger clustering:
+If zero, trigger initial clustering:
 ```bash
-curl -X POST https://your-backend.railway.app/api/admin/cluster \
+curl -X POST https://your-api.com/api/admin/cluster \
   -H "X-API-Key: your-admin-key"
 ```
 
 ### Performance Issues
 
-1. **Enable Redis caching** - Reduces database load
-2. **Increase sample size gradually** - Start with 1000 customers
-3. **Use database indexes**:
+1. **Add database indexes** (see Performance Optimization section)
+2. **Enable Redis caching**
+3. **Reduce sample size** - Start with 1000, increase gradually
+4. **Check database query performance**:
 ```sql
-CREATE INDEX idx_customer_email ON ecommerce.customers(email);
-CREATE INDEX idx_orders_customer ON ecommerce.orders(customer_id);
-CREATE INDEX idx_intelligence_archetype ON ecommerce.customer_intelligence(archetype_id);
+EXPLAIN ANALYZE SELECT * FROM orders WHERE customer_id = 123;
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────┐
+│   Your E-commerce Platform          │
+│   (Shopify/WooCommerce/Custom)      │
+└────────────┬────────────────────────┘
+             │ Data Sync (your ETL)
+             ▼
+┌─────────────────────────────────────┐
+│   Database (PostgreSQL/MySQL)       │
+│   - customers                       │
+│   - orders                          │
+│   - order_line_items                │
+│   - customer_intelligence (output)  │
+└────────────┬────────────────────────┘
+             │ SQL Queries
+             ▼
+┌─────────────────────────────────────┐
+│   Intelligence Backend              │
+│   - Behavioral Clustering           │
+│   - Segment Analysis                │
+│   - LTV Prediction                  │
+│   - Churn Risk Scoring              │
+└────────────┬────────────────────────┘
+             │ REST API
+             ▼
+┌─────────────────────────────────────┐
+│   Your Application                  │
+│   - Personalization                 │
+│   - Marketing Automation            │
+│   - Customer Service                │
+└─────────────────────────────────────┘
 ```
 
 ---
 
 ## Next Steps
 
-1. ✅ Set up database with required schemas
-2. ✅ Deploy Intelligence Backend to Railway
-3. ✅ Configure environment variables
-4. ✅ Set up data sync from your e-commerce platform
+1. ✅ Set up database (any SQL database)
+2. ✅ Sync your customer/order data
+3. ✅ Deploy Intelligence Backend (any platform)
+4. ✅ Configure environment variables
 5. ✅ Run initial clustering
-6. ✅ Integrate API endpoints into your application
+6. ✅ Integrate API into your application
 7. ✅ Set up monitoring and scheduled tasks
 
 ---
 
-## Support
+## Support & Documentation
 
-- **Documentation**: See `/docs` directory for detailed architecture
-- **API Reference**: `https://your-backend.railway.app/docs` (Swagger UI)
+- **API Documentation**: `https://your-api.com/docs` (Swagger UI)
+- **Architecture Details**: See `/docs` directory
 - **GitHub**: https://github.com/Quimbi-ai/intelligence-backend
+
+**Platform agnostic - works with any infrastructure, database, or e-commerce platform.**
