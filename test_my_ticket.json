@@ -1,0 +1,24 @@
+{
+  "id": "REPLACE_WITH_TICKET_ID",
+  "via": "sms",
+  "channel": "sms",
+  "subject": "SMS from customer",
+  "status": "open",
+  "customer": {
+    "phone": "REPLACE_WITH_PHONE_NUMBER",
+    "email": "customer@example.com",
+    "name": "Customer Name"
+  },
+  "messages": [
+    {
+      "body_text": "REPLACE_WITH_CUSTOMER_MESSAGE",
+      "body_html": "<p>REPLACE_WITH_CUSTOMER_MESSAGE</p>",
+      "is_note": false,
+      "from": {
+        "phone": "REPLACE_WITH_PHONE_NUMBER"
+      },
+      "created_datetime": "2025-11-07T10:00:00Z"
+    }
+  ],
+  "tags": []
+}

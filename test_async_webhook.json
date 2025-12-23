@@ -1,0 +1,23 @@
+{
+  "id": 999999,
+  "subject": "Test async processing",
+  "status": "open",
+  "channel": "email",
+  "via": "email",
+  "messages": [
+    {
+      "id": 9999991,
+      "body_html": "<p>Test message</p>",
+      "body_text": "Test message",
+      "from_agent": false,
+      "via": "email",
+      "channel": "email"
+    }
+  ],
+  "customer": {
+    "id": 12345,
+    "email": "test@example.com",
+    "name": "Test Customer",
+    "integrations": {}
+  }
+}

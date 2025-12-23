@@ -1,0 +1,26 @@
+{
+  "id": "235568882",
+  "via": "sms",
+  "channel": "sms",
+  "subject": "SMS from Jeri KESSLER",
+  "status": "open",
+  "customer": {
+    "phone": "+15415214548",
+    "email": "jeri.kessler@example.com",
+    "name": "Jeri KESSLER",
+    "id": "jeri_customer_id"
+  },
+  "messages": [
+    {
+      "body_text": "Dream poly weighty loft",
+      "body_html": "<p>Dream poly weighty loft</p>",
+      "is_note": false,
+      "from": {
+        "phone": "+15415214548",
+        "name": "Jeri KESSLER"
+      },
+      "created_datetime": "2025-11-07T21:03:15Z"
+    }
+  ],
+  "tags": []
+}

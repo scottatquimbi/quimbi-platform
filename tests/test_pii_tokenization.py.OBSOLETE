@@ -1,0 +1,255 @@
+"""
+Unit Tests for PII Tokenization Service
+
+Tests:
+- Token generation and determinism
+- Encryption and decryption
+- GDPR deletion
+- Token rotation
+- Access auditing
+
+Author: Quimbi Platform
+Date: October 14, 2025
+"""
+
+import pytest
+from backend.core.pii_tokenization import (
+    PIITokenizationService,
+    AnonymousPlayerIDGenerator,
+    tokenize_and_store,
+    get_player_id_safe
+)
+from tests.conftest import assert_token_format_valid
+
+
+class TestPIITokenization:
+    """Test PII tokenization service"""
+
+    def test_tokenize_player_id(self, pii_service):
+        """Test basic tokenization"""
+        player_id = "player@example.com"
+        token = pii_service.tokenize_player_id(player_id)
+
+        assert_token_format_valid(token)
+        assert player_id not in token, "Token should not contain original PII"
+
+    def test_deterministic_tokenization(self, pii_service):
+        """Test same input produces same token"""
+        player_id = "player@example.com"
+
+        token1 = pii_service.tokenize_player_id(player_id)
+        token2 = pii_service.tokenize_player_id(player_id)
+
+        assert token1 == token2, "Same input should produce same token"
+
+    def test_different_inputs_different_tokens(self, pii_service):
+        """Test different inputs produce different tokens"""
+        token1 = pii_service.tokenize_player_id("player1@example.com")
+        token2 = pii_service.tokenize_player_id("player2@example.com")
+
+        assert token1 != token2, "Different inputs should produce different tokens"
+
+    def test_empty_player_id_raises_error(self, pii_service):
+        """Test empty player ID raises error"""
+        with pytest.raises(ValueError, match="player_id cannot be empty"):
+            pii_service.tokenize_player_id("")
+
+    @pytest.mark.asyncio
+    async def test_store_and_retrieve_token(self, pii_service, db_session, sample_player_ids):
+        """Test storing and retrieving encrypted PII"""
+        player_id = sample_player_ids[0]
+        token = pii_service.tokenize_player_id(player_id)
+
+        # Store
+        await pii_service.store_token_mapping(
+            db_session,
+            player_id,
+            token,
+            metadata={"game_id": "test_game"}
+        )
+        await db_session.commit()
+
+        # Retrieve
+        retrieved = await pii_service.detokenize(
+            db_session,
+            token,
+            audit_reason="test"
+        )
+
+        assert retrieved == player_id, "Should retrieve original player ID"
+
+    @pytest.mark.asyncio
+    async def test_detokenize_invalid_token_returns_none(self, pii_service, db_session):
+        """Test detokenizing invalid token returns None"""
+        result = await pii_service.detokenize(
+            db_session,
+            "tok_invalid_token_12345678",
+            audit_reason="test"
+        )
+
+        assert result is None, "Invalid token should return None"
+
+    @pytest.mark.asyncio
+    async def test_delete_pii_gdpr(self, pii_service, db_session, sample_player_ids):
+        """Test GDPR deletion (right to be forgotten)"""
+        player_id = sample_player_ids[0]
+        token = pii_service.tokenize_player_id(player_id)
+
+        # Store
+        await pii_service.store_token_mapping(db_session, player_id, token)
+        await db_session.commit()
+
+        # Delete PII
+        await pii_service.delete_pii(db_session, token)
+        await db_session.commit()
+
+        # Try to retrieve (should return None)
+        retrieved = await pii_service.detokenize(db_session, token, audit_reason="test")
+        assert retrieved is None, "Should not retrieve deleted PII"
+
+    @pytest.mark.asyncio
+    async def test_token_rotation(self, pii_service, db_session, sample_player_ids):
+        """Test token rotation for security"""
+        player_id = sample_player_ids[0]
+        old_token = pii_service.tokenize_player_id(player_id)
+
+        # Store original
+        await pii_service.store_token_mapping(db_session, player_id, old_token)
+        await db_session.commit()
+
+        # Rotate
+        new_token = await pii_service.rotate_token(db_session, old_token)
+        await db_session.commit()
+
+        assert new_token != old_token, "New token should be different"
+
+        # Both tokens should work (during transition period)
+        old_retrieved = await pii_service.detokenize(db_session, old_token, audit_reason="test")
+        new_retrieved = await pii_service.detokenize(db_session, new_token, audit_reason="test")
+
+        assert old_retrieved is not None or new_retrieved is not None, "At least one token should work"
+
+    @pytest.mark.asyncio
+    async def test_access_count_increments(self, pii_service, db_session, sample_player_ids):
+        """Test access count increments on each detokenization"""
+        player_id = sample_player_ids[0]
+        token = pii_service.tokenize_player_id(player_id)
+
+        await pii_service.store_token_mapping(db_session, player_id, token)
+        await db_session.commit()
+
+        # Access multiple times
+        for _ in range(3):
+            await pii_service.detokenize(db_session, token, audit_reason="test")
+
+        # Note: Access count verification would require querying the vault table
+        # This is a placeholder for that test
+
+
+class TestAnonymousPlayerID:
+    """Test anonymous player ID generation"""
+
+    def test_generate_anonymous_id(self):
+        """Test anonymous ID generation"""
+        anon_id = AnonymousPlayerIDGenerator.generate_anonymous_id()
+
+        assert anon_id.startswith("anon_"), "Should have anon_ prefix"
+        assert len(anon_id) > 10, "Should be sufficiently long"
+
+    def test_generate_with_custom_prefix(self):
+        """Test generation with custom prefix"""
+        anon_id = AnonymousPlayerIDGenerator.generate_anonymous_id(prefix="test")
+
+        assert anon_id.startswith("test_"), "Should have custom prefix"
+
+    def test_uniqueness(self):
+        """Test generated IDs are unique"""
+        ids = {AnonymousPlayerIDGenerator.generate_anonymous_id() for _ in range(100)}
+
+        assert len(ids) == 100, "All IDs should be unique"
+
+    def test_is_anonymous_id_detection(self):
+        """Test anonymous ID detection"""
+        anon_id = AnonymousPlayerIDGenerator.generate_anonymous_id()
+        token = "tok_a1b2c3d4e5f6g7h8"
+        real_id = "player@example.com"
+
+        assert AnonymousPlayerIDGenerator.is_anonymous_id(anon_id), "Should detect anonymous ID"
+        assert AnonymousPlayerIDGenerator.is_anonymous_id(token), "Should detect token"
+        assert not AnonymousPlayerIDGenerator.is_anonymous_id(real_id), "Should not detect real ID"
+
+
+class TestConvenienceFunctions:
+    """Test convenience helper functions"""
+
+    @pytest.mark.asyncio
+    async def test_tokenize_and_store(self, pii_service, db_session, sample_player_ids):
+        """Test one-step tokenization and storage"""
+        player_id = sample_player_ids[0]
+
+        token = await tokenize_and_store(
+            db_session,
+            player_id,
+            pii_service,
+            metadata={"game_id": "test"}
+        )
+        await db_session.commit()
+
+        assert_token_format_valid(token)
+
+        # Verify stored
+        retrieved = await pii_service.detokenize(db_session, token, audit_reason="test")
+        assert retrieved == player_id
+
+    @pytest.mark.asyncio
+    async def test_get_player_id_safe(self, pii_service, db_session, sample_player_ids):
+        """Test safe player ID retrieval with auditing"""
+        player_id = sample_player_ids[0]
+        token = await tokenize_and_store(db_session, player_id, pii_service)
+        await db_session.commit()
+
+        retrieved = await get_player_id_safe(
+            db_session,
+            token,
+            pii_service,
+            reason="customer_support"
+        )
+
+        assert retrieved == player_id
+
+
+class TestEncryptionSecurity:
+    """Test encryption security properties"""
+
+    def test_different_services_different_keys_different_tokens(self):
+        """Test different encryption keys produce different ciphertext"""
+        from cryptography.fernet import Fernet
+
+        service1 = PIITokenizationService(encryption_key=Fernet.generate_key())
+        service2 = PIITokenizationService(encryption_key=Fernet.generate_key())
+
+        # Tokens should be deterministic per service
+        token1 = service1.tokenize_player_id("test@example.com")
+        token2 = service2.tokenize_player_id("test@example.com")
+
+        # Note: Tokens are deterministic (HMAC-based), so they'll be same
+        # But encrypted PII in vault would be different
+        assert token1 == token2, "Tokens are deterministic"
+
+    def test_encryption_produces_different_ciphertext(self):
+        """Test encryption produces different ciphertext each time"""
+        from cryptography.fernet import Fernet
+
+        service = PIITokenizationService()
+        plaintext = "test@example.com".encode()
+
+        # Encrypt twice
+        ciphertext1 = service.cipher.encrypt(plaintext)
+        ciphertext2 = service.cipher.encrypt(plaintext)
+
+        # Ciphertexts should be different (Fernet includes timestamp)
+        assert ciphertext1 != ciphertext2, "Fernet should produce different ciphertext"
+
+        # But both decrypt to same plaintext
+        assert service.cipher.decrypt(ciphertext1) == plaintext
+        assert service.cipher.decrypt(ciphertext2) == plaintext

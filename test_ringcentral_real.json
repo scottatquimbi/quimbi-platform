@@ -1,0 +1,26 @@
+{
+  "id": 888888,
+  "subject": "Voicemail from customer",
+  "messages": [
+    {
+      "id": 8888881,
+      "body_html": "<p><strong>From:</strong> Jane Customer (972) 555-1234<br><strong>To:</strong> (972) 542-4000 * 104 Summer Leisure<br><strong>Length:</strong> 00:25</p><p>Listen to this message over your phone or log in to your RingCentral account.</p>",
+      "body_text": "From: Jane Customer (972) 555-1234\nTo: (972) 542-4000 * 104 Summer Leisure\nLength: 00:25\n\nListen to this message over your phone or log in to your RingCentral account.",
+      "from_agent": false,
+      "via": "email",
+      "channel": "email",
+      "source": {
+        "type": "email"
+      }
+    }
+  ],
+  "customer": {
+    "id": 7977067151615,
+    "email": "noreply@ringcentral.com",
+    "name": "Jane Customer",
+    "phone": "+19725551234",
+    "meta": {}
+  },
+  "via": "email",
+  "channel": "email"
+}

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified Segmentation System - Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f7fa;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .alert {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 4px;
+        }
+
+        .alert h3 {
+            color: #856404;
+            margin-bottom: 0.5rem;
+        }
+
+        .search-box {
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .category {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .category h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #f0f0f0;
+            font-size: 1.5rem;
+        }
+
+        .doc-list {
+            list-style: none;
+        }
+
+        .doc-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+
+        .doc-item:hover {
+            background: #f8f9fa;
+        }
+
+        .doc-item:last-child {
+            border-bottom: none;
+        }
+
+        .doc-link {
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .doc-link:hover {
+            color: #667eea;
+        }
+
+        .doc-icon {
+            font-size: 1.2rem;
+        }
+
+        .doc-meta {
+            color: #999;
+            font-size: 0.85rem;
+            margin-left: 1.7rem;
+        }
+
+        .footer {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .footer h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .path-display {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            word-break: break-all;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .required-badge {
+            background: #dc3545;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>📚 Unified Segmentation System</h1>
+            <p>Documentation Browser - No Server Required</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="alert">
+            <h3>⚠️ Static Documentation Access</h3>
+            <p>This is a static HTML file that can be opened directly in your browser without running a server. Click any document below to open it in your text editor or IDE.</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 Search documentation..." onkeyup="filterDocs()">
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">19</div>
+                <div class="stat-label">Total Documents</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">5</div>
+                <div class="stat-label">Categories</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">~8,200</div>
+                <div class="stat-label">Lines of Docs</div>
+            </div>
+        </div>
+
+        <!-- Architecture -->
+        <div class="category" data-category="architecture">
+            <h2>📐 Architecture</h2>
+            <ul class="doc-list">
+                <li class="doc-item">
+                    <a href="architecture/AFFORDANCE_BASED_TAXONOMY.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Affordance-Based Taxonomy</span>
+                        <span class="required-badge">REQUIRED</span>
+                    </a>
+                    <div class="doc-meta">Core design philosophy - ~400 lines</div>
+                </li>
+                <li class="doc-item">
+                    <a href="architecture/WHY_CURRENT_SYSTEM_FAILS.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Why Current System Fails (NOW FIXED!)</span>
+                    </a>
+                    <div class="doc-meta">Original problem analysis - ~200 lines</div>
+                </li>
+                <li class="doc-item">
+                    <a href="architecture/FUZZY_MEMBERSHIP_EXPLAINED.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Fuzzy Membership Explained</span>
+                        <span class="required-badge">REQUIRED</span>
+                    </a>
+                    <div class="doc-meta">Mathematical foundation - ~300 lines</div>
+                </li>
+                <li class="doc-item">
+                    <a href="architecture/ENGAGEMENT_GRAPH_PROPOSAL.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Engagement Graph Proposal</span>
+                    </a>
+                    <div class="doc-meta">Future enhancement - ~500 lines</div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- API -->
+        <div class="category" data-category="api">
+            <h2>🔌 API & Deployment</h2>
+            <ul class="doc-list">
+                <li class="doc-item">
+                    <a href="api/API_DOCUMENTATION.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>API Documentation v2.0.0</span>
+                        <span class="required-badge">REQUIRED</span>
+                    </a>
+                    <div class="doc-meta">Complete REST API reference - ~1,100 lines</div>
+                </li>
+                <li class="doc-item">
+                    <a href="api/RAILWAY_SETUP.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Railway Setup Guide</span>
+                    </a>
+                    <div class="doc-meta">Railway deployment - ~300 lines</div>
+                </li>
+                <li class="doc-item">
+                    <a href="api/DEPLOYMENT_GUIDE.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Deployment Guide</span>
+                    </a>
+                    <div class="doc-meta">Comprehensive deployment - ~600 lines</div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Guides -->
+        <div class="category" data-category="guides">
+            <h2>📚 Guides</h2>
+            <ul class="doc-list">
+                <li class="doc-item">
+                    <a href="guides/TESTING_GUIDE.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Testing Guide</span>
+                        <span class="required-badge">REQUIRED</span>
+                    </a>
+                    <div class="doc-meta">How to test the system - ~500 lines</div>
+                </li>
+                <li class="doc-item">
+                    <a href="guides/MIGRATION_GUIDE.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Migration Guide</span>
+                    </a>
+                    <div class="doc-meta">Migrating to affordance-based - ~600 lines</div>
+                </li>
+                <li class="doc-item">
+                    <a href="guides/TEMPORAL_JOURNEY_TRACKING.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Temporal Journey Tracking</span>
+                    </a>
+                    <div class="doc-meta">Player journeys over time - ~400 lines</div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Implementation -->
+        <div class="category" data-category="implementation">
+            <h2>🔧 Implementation</h2>
+            <ul class="doc-list">
+                <li class="doc-item">
+                    <a href="implementation/PACKAGE_SUMMARY.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Package Summary</span>
+                        <span class="required-badge">REQUIRED</span>
+                    </a>
+                    <div class="doc-meta">System overview - ~600 lines</div>
+                </li>
+                <li class="doc-item">
+                    <a href="implementation/DEVELOPMENT_SUMMARY.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Development Summary</span>
+                        <span class="required-badge">REQUIRED</span>
+                    </a>
+                    <div class="doc-meta">Affordance discovery implementation - ~600 lines</div>
+                </li>
+                <li class="doc-item">
+                    <a href="implementation/SEGMENT_DISCOVERY_SUMMARY.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Segment Discovery Summary</span>
+                        <span class="required-badge">REQUIRED</span>
+                    </a>
+                    <div class="doc-meta">Segment discovery implementation - ~600 lines</div>
+                </li>
+                <li class="doc-item">
+                    <a href="implementation/NEXT_STEPS_SUMMARY.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Next Steps Summary</span>
+                    </a>
+                    <div class="doc-meta">Original problem statement - ~100 lines</div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Analysis -->
+        <div class="category" data-category="analysis">
+            <h2>🔍 Analysis</h2>
+            <ul class="doc-list">
+                <li class="doc-item">
+                    <a href="analysis/RAILWAY_TEST_DATA_ANALYSIS.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Railway Test Data Analysis</span>
+                        <span class="required-badge">CRITICAL</span>
+                    </a>
+                    <div class="doc-meta">Data compatibility analysis - ~1,100 lines</div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Root Files -->
+        <div class="category" data-category="root">
+            <h2>📋 Index & Reference</h2>
+            <ul class="doc-list">
+                <li class="doc-item">
+                    <a href="README.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>README - Main Navigation Hub</span>
+                    </a>
+                    <div class="doc-meta">Entry point for AI systems</div>
+                </li>
+                <li class="doc-item">
+                    <a href="AI_QUICK_REFERENCE.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>AI Quick Reference</span>
+                    </a>
+                    <div class="doc-meta">Fast lookup for common tasks</div>
+                </li>
+                <li class="doc-item">
+                    <a href="DOCUMENTATION_COMPLETE.md" class="doc-link">
+                        <span class="doc-icon">📄</span>
+                        <span>Documentation Complete Summary</span>
+                    </a>
+                    <div class="doc-meta">Completion report</div>
+                </li>
+                <li class="doc-item">
+                    <a href="metadata.json" class="doc-link">
+                        <span class="doc-icon">📊</span>
+                        <span>metadata.json</span>
+                    </a>
+                    <div class="doc-meta">Machine-readable structure</div>
+                </li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <h3>📁 Documentation Location</h3>
+            <p>All documentation files are located at:</p>
+            <div class="path-display">/Users/scottallen/unified-segmentation-system/.ai-docs</div>
+
+            <h3 style="margin-top: 1.5rem;">💡 How to Access</h3>
+            <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                <li>Click any document link to open in your default markdown viewer/editor</li>
+                <li>Or navigate to the path above in Finder/Explorer</li>
+                <li>Or use VS Code: <code style="background: #f0f0f0; padding: 0.2rem 0.4rem; border-radius: 3px;">code /Users/scottallen/unified-segmentation-system/.ai-docs</code></li>
+            </ul>
+
+            <h3 style="margin-top: 1.5rem;">🚀 To Enable Swagger UI</h3>
+            <p style="margin-top: 0.5rem;">If you want interactive API docs, install dependencies and run:</p>
+            <div class="path-display">pip install markdown pygments fastapi uvicorn pydantic<br>python3 docs_server.py</div>
+            <p style="margin-top: 0.5rem; color: #666;">Then access at: <strong>http://localhost:8001/docs</strong></p>
+        </div>
+    </div>
+
+    <script>
+        function filterDocs() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const categories = document.querySelectorAll('.category');
+
+            categories.forEach(category => {
+                const items = category.querySelectorAll('.doc-item');
+                let visibleCount = 0;
+
+                items.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        item.style.display = '';
+                        visibleCount++;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+
+                // Hide category if no visible items
+                category.style.display = visibleCount > 0 ? '' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "id": "235568882",
+  "via": "email",
+  "channel": "email",
+  "subject": "New SMS to Linda's Electric Quilters from Jeri KESSLER +1 (541) 521-4548",
+  "status": "open",
+  "customer": {
+    "phone": "+15415214548",
+    "email": "no-reply@klaviyo.com",
+    "name": "Jeri KESSLER",
+    "id": "637373184"
+  },
+  "messages": [
+    {
+      "body_text": "Dream poly weighty loft",
+      "body_html": "<p>Dream poly weighty loft</p>",
+      "is_note": false,
+      "from": {
+        "phone": "+15415214548",
+        "name": "Jeri KESSLER"
+      },
+      "created_datetime": "2025-11-07T21:03:15Z"
+    }
+  ],
+  "tags": []
+}

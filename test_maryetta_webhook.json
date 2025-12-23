@@ -1,0 +1,53 @@
+{
+  "id": 235591704,
+  "subject": "Report an issue - Contact Us",
+  "status": "open",
+  "channel": "contact_form",
+  "via": "contact_form",
+  "created_datetime": "2025-11-07T23:27:49.709086+00:00",
+  "messages": [
+    {
+      "id": 578982168,
+      "body_html": "Today I could not place an order on the website since the system would not send (email) me a code. (Tried at least 3 times and waited for 20 minutes each time)   I called and was told that I had 2 accounts with the same email so she took my order over the phone and told me that she was combining the 2 accounts (which should not have occurred in the first place.)  I was supposed to get an email confirming the order but did not.  Also I have tried to log in again to see if the system was working (as your rep told me to) and I did not get sent a code. (Again) My credit card has been charged.  Can you please email me an order number and tracking info and also fix it so I can log into my account?   I placed the order about 1PM central time and it is now 5:30 and no confirmation.  Thanks in advance for your assistance<br>Maryetta Petras",
+      "body_text": "Today I could not place an order on the website since the system would not send (email) me a code. (Tried at least 3 times and waited for 20 minutes each time)   I called and was told that I had 2 accounts with the same email so she took my order over the phone and told me that she was combining the 2 accounts (which should not have occurred in the first place.)  I was supposed to get an email confirming the order but did not.  Also I have tried to log in again to see if the system was working (as your rep told me to) and I did not get sent a code. (Again) My credit card has been charged.  Can you please email me an order number and tracking info and also fix it so I can log into my account?   I placed the order about 1PM central time and it is now 5:30 and no confirmation.  Thanks in advance for your assistance<br>Maryetta Petras",
+      "from_agent": false,
+      "via": "contact_form",
+      "channel": "contact_form",
+      "source": {
+        "type": "contact-form"
+      }
+    }
+  ],
+  "customer": {
+    "id": 524793636,
+    "email": "mpetras01@comcast.net",
+    "name": "Maryetta Petras",
+    "firstname": "Maryetta",
+    "lastname": "Petras",
+    "channels": [
+      {
+        "address": "+1 219-616-8094",
+        "type": "phone",
+        "preferred": true
+      },
+      {
+        "address": "mpetras01@comcast.net",
+        "type": "email",
+        "preferred": true
+      }
+    ],
+    "integrations": {
+      "82185": {
+        "__integration_type__": "shopify",
+        "customer": {
+          "id": 7408502702335,
+          "email": "mpetras01@comast.net",
+          "phone": "+12196168094",
+          "orders_count": 5,
+          "total_spent": "323.03"
+        }
+      }
+    }
+  },
+  "tags": []
+}

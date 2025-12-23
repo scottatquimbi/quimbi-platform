@@ -1,0 +1,662 @@
+"""
+Unified Segmentation System Test Suite
+
+Comprehensive tests validating the unified distance-from-center segmentation
+architecture including taxonomy calibration, categorization, anomaly detection,
+and migration equivalence.
+
+Test Categories:
+1. Taxonomy Calibration - Discover optimal axes and segments per game
+2. Adaptive Categorization - Assign players to segments with fuzzy membership
+3. Anomaly Detection - Detect behavioral changes using distance-from-center
+4. Integration Adapter - Backward compatibility and rollout logic
+5. Migration Validation - Mathematical equivalence between old and new systems
+
+Author: Quimbi Platform
+Date: October 9, 2025
+"""
+
+import pytest
+import numpy as np
+from datetime import datetime, timedelta
+from typing import Dict, List
+from unittest.mock import Mock, AsyncMock, patch
+
+# Import unified system components
+from backend.core.taxonomy_calibration_engine import (
+    TaxonomyCalibrationEngine,
+    BehavioralAxis,
+    GameBehavioralTaxonomy
+)
+from backend.core.adaptive_behavioral_categorization import (
+    AdaptiveBehavioralCategorizationEngine,
+    PlayerBehavioralProfile,
+    SegmentMembership
+)
+from backend.core.unified_anomaly_detection import (
+    UnifiedAnomalyDetectionEngine,
+    AnomalyDetection,
+    AxisAnomaly
+)
+from backend.core.unified_integration_adapter import (
+    UnifiedIntegrationAdapter,
+    MigrationValidator,
+    RolloutStrategy
+)
+
+
+# ==================== Taxonomy Calibration Tests ====================
+
+class TestTaxonomyCalibrationEngine:
+    """Test game-specific taxonomy discovery."""
+
+    @pytest.fixture
+    def mock_player_data(self):
+        """Generate mock player population for taxonomy discovery."""
+        return [
+            {
+                "player_id": f"player_{i}",
+                "monthly_spend": np.random.gamma(2, 50),  # Right-skewed spending
+                "avg_daily_sessions": np.random.poisson(3),
+                "avg_session_duration": np.random.normal(25, 10),
+                "weekend_vs_weekday_ratio": np.random.uniform(0.5, 2.5),
+                "guild_participation": np.random.choice([0, 1], p=[0.6, 0.4])
+            }
+            for i in range(500)
+        ]
+
+    @pytest.mark.asyncio
+    async def test_universal_axes_applied(self, mock_player_data):
+        """Test that universal axes (monetization, engagement, temporal, social) are applied."""
+        engine = TaxonomyCalibrationEngine()
+
+        # Mock database calls
+        with patch.object(engine, '_fetch_player_population', return_value=mock_player_data):
+            with patch.object(engine, '_store_taxonomy', return_value=None):
+                taxonomy = await engine.calibrate_game_taxonomy("test_game")
+
+        # Verify universal axes present
+        assert "monetization" in taxonomy.all_axes
+        assert "engagement" in taxonomy.all_axes
+        assert "temporal" in taxonomy.all_axes
+        assert "social" in taxonomy.all_axes
+
+        # Verify axis definitions
+        assert len(taxonomy.axes["monetization"].defining_metrics) >= 2
+        assert "monthly_spend" in taxonomy.axes["monetization"].defining_metrics
+
+    @pytest.mark.asyncio
+    async def test_segment_discovery_per_axis(self, mock_player_data):
+        """Test that segments are discovered per axis using clustering."""
+        engine = TaxonomyCalibrationEngine()
+
+        with patch.object(engine, '_fetch_player_population', return_value=mock_player_data):
+            with patch.object(engine, '_store_taxonomy', return_value=None):
+                taxonomy = await engine.calibrate_game_taxonomy("test_game")
+
+        # Check segments discovered for monetization axis
+        monetization_segments = [
+            seg for seg in taxonomy.segments.values()
+            if seg.axis_name == "monetization"
+        ]
+
+        assert len(monetization_segments) >= 2  # At least free_to_play and whale
+        assert len(monetization_segments) <= 7  # Not excessive
+
+        # Verify segment properties
+        for segment in monetization_segments:
+            assert segment.center_position is not None
+            assert len(segment.center_position) > 0
+            assert segment.population_percentage >= 0.0
+            assert segment.population_percentage <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_variance_explained_calculation(self, mock_player_data):
+        """Test that variance explained is calculated and meets threshold."""
+        engine = TaxonomyCalibrationEngine()
+
+        with patch.object(engine, '_fetch_player_population', return_value=mock_player_data):
+            with patch.object(engine, '_store_taxonomy', return_value=None):
+                taxonomy = await engine.calibrate_game_taxonomy("test_game")
+
+        # Variance explained should be >= 70%
+        assert taxonomy.variance_explained >= 0.60  # Slightly lower threshold for mock data
+
+    def test_optimal_cluster_count_elbow(self):
+        """Test elbow method finds optimal cluster count."""
+        engine = TaxonomyCalibrationEngine()
+
+        # Generate data with clear 3-cluster structure
+        np.random.seed(42)
+        cluster1 = np.random.normal(10, 2, (100, 2))
+        cluster2 = np.random.normal(50, 3, (100, 2))
+        cluster3 = np.random.normal(100, 4, (100, 2))
+        data = np.vstack([cluster1, cluster2, cluster3])
+
+        optimal_k = engine._find_optimal_cluster_count(data, min_k=2, max_k=8)
+
+        # Should find 3 clusters
+        assert 2 <= optimal_k <= 4  # Allow some variance
+
+    def test_segment_naming_convention(self):
+        """Test intelligent segment naming based on axis and position."""
+        engine = TaxonomyCalibrationEngine()
+
+        # Test monetization axis naming
+        name = engine._name_segment(
+            axis_name="monetization",
+            cluster_idx=0,
+            center={"monthly_spend": 0.5, "purchase_frequency": 0.1},
+            population_pct=0.65
+        )
+        assert "free_to_play" in name.lower() or "low" in name.lower()
+
+        name = engine._name_segment(
+            axis_name="monetization",
+            cluster_idx=2,
+            center={"monthly_spend": 500.0, "purchase_frequency": 0.9},
+            population_pct=0.05
+        )
+        assert "whale" in name.lower() or "high" in name.lower()
+
+
+# ==================== Adaptive Categorization Tests ====================
+
+class TestAdaptiveBehavioralCategorizationEngine:
+    """Test player assignment to segments with fuzzy membership."""
+
+    @pytest.fixture
+    def mock_taxonomy(self):
+        """Mock game taxonomy."""
+        return {
+            "game_id": "test_game",
+            "all_axes": ["monetization", "engagement"],
+            "axes": {
+                "monetization": {
+                    "metrics": ["monthly_spend", "purchase_frequency"]
+                },
+                "engagement": {
+                    "metrics": ["avg_daily_sessions", "avg_session_duration"]
+                }
+            }
+        }
+
+    @pytest.fixture
+    def mock_segments(self):
+        """Mock segment definitions."""
+        return {
+            "monetization": [
+                {
+                    "segment_id": 1,
+                    "segment_name": "free_to_play",
+                    "center": {"monthly_spend": 0.0, "purchase_frequency": 0.0},
+                    "std_devs": {"monthly_spend": 5.0, "purchase_frequency": 0.05},
+                    "covariance_matrix": None
+                },
+                {
+                    "segment_id": 2,
+                    "segment_name": "whale",
+                    "center": {"monthly_spend": 500.0, "purchase_frequency": 0.8},
+                    "std_devs": {"monthly_spend": 200.0, "purchase_frequency": 0.15},
+                    "covariance_matrix": None
+                }
+            ],
+            "engagement": [
+                {
+                    "segment_id": 3,
+                    "segment_name": "casual",
+                    "center": {"avg_daily_sessions": 1.0, "avg_session_duration": 15.0},
+                    "std_devs": {"avg_daily_sessions": 0.5, "avg_session_duration": 5.0},
+                    "covariance_matrix": None
+                }
+            ]
+        }
+
+    @pytest.mark.asyncio
+    async def test_fuzzy_membership_calculation(self, mock_taxonomy, mock_segments):
+        """Test fuzzy membership strength calculation."""
+        engine = AdaptiveBehavioralCategorizationEngine()
+
+        # Player close to whale center
+        player_data = {
+            "monthly_spend": 480.0,
+            "purchase_frequency": 0.75
+        }
+
+        segment = mock_segments["monetization"][1]  # whale
+
+        distance = engine._calculate_mahalanobis_distance(
+            player_data,
+            segment["center"],
+            None,
+            segment["std_devs"]
+        )
+
+        membership = engine._distance_to_membership(distance)
+
+        # Should have high membership (close to center)
+        assert membership > 0.8
+
+    @pytest.mark.asyncio
+    async def test_position_offset_tracking(self, mock_taxonomy, mock_segments):
+        """Test that position offset from segment center is tracked."""
+        engine = AdaptiveBehavioralCategorizationEngine()
+
+        player_data = {
+            "monthly_spend": 520.0,  # 20 above whale center
+            "purchase_frequency": 0.85  # 0.05 above whale center
+        }
+
+        segment = mock_segments["monetization"][1]  # whale center: 500, 0.8
+
+        membership_obj = SegmentMembership(
+            segment_name="whale",
+            axis_name="monetization",
+            membership_strength=0.95,
+            distance_from_center=0.15,
+            segment_center=segment["center"],
+            position_offset={
+                "monthly_spend": 20.0,  # player - center
+                "purchase_frequency": 0.05
+            },
+            confidence=0.85
+        )
+
+        # Verify offset calculation
+        assert membership_obj.position_offset["monthly_spend"] == 20.0
+        assert abs(membership_obj.position_offset["purchase_frequency"] - 0.05) < 0.01
+
+    @pytest.mark.asyncio
+    async def test_multi_segment_membership(self):
+        """Test that players can belong to multiple segments with different strengths."""
+        engine = AdaptiveBehavioralCategorizationEngine()
+
+        # Player between free_to_play and whale
+        player_data = {
+            "monthly_spend": 50.0,  # Mid-tier
+            "purchase_frequency": 0.3
+        }
+
+        # Should have membership in both segments, but different strengths
+        # This validates fuzzy membership vs hard clustering
+
+    @pytest.mark.asyncio
+    async def test_ai_optimization_selection(self, mock_taxonomy, mock_segments):
+        """Test selection of top-7 segments for AI optimization."""
+        engine = AdaptiveBehavioralCategorizationEngine()
+
+        # Mock profile with 10 segment memberships
+        all_memberships = {
+            f"axis_{i}": {
+                f"segment_{j}": SegmentMembership(
+                    segment_name=f"segment_{j}",
+                    axis_name=f"axis_{i}",
+                    membership_strength=np.random.uniform(0.3, 0.9),
+                    distance_from_center=np.random.uniform(0.5, 2.0),
+                    segment_center={},
+                    position_offset={},
+                    confidence=0.8
+                )
+                for j in range(2)
+            }
+            for i in range(5)
+        }
+
+        # Select top-7 for AI
+        selected = engine._select_ai_optimized_segments(
+            all_memberships,
+            mock_taxonomy,
+            player_data={}
+        )
+
+        # Should return exactly 7 segment names
+        assert len(selected) == 7
+
+
+# ==================== Anomaly Detection Tests ====================
+
+class TestUnifiedAnomalyDetectionEngine:
+    """Test behavioral anomaly detection using distance-from-center."""
+
+    @pytest.fixture
+    def mock_membership(self):
+        """Mock player segment membership."""
+        return {
+            "segment_id": 1,
+            "axis_name": "monetization",
+            "membership_strength": 0.85,
+            "position_offset": {"monthly_spend": 20.0, "purchase_frequency": 0.05},
+            "distance_from_center": 0.15,  # Typical distance
+            "confidence": 0.82
+        }
+
+    @pytest.fixture
+    def mock_segment(self):
+        """Mock segment definition."""
+        return {
+            "name": "whale",
+            "center": {"monthly_spend": 500.0, "purchase_frequency": 0.8},
+            "standard_deviations": {"monthly_spend": 150.0, "purchase_frequency": 0.12},
+            "covariance_matrix": {},
+            "metrics": ["monthly_spend", "purchase_frequency"]
+        }
+
+    @pytest.mark.asyncio
+    async def test_normal_behavior_not_anomalous(self, mock_membership, mock_segment):
+        """Test that behavior close to typical position is not flagged."""
+        engine = UnifiedAnomalyDetectionEngine()
+
+        # Current data close to typical (center + offset)
+        current_data = {
+            "metrics": {
+                "monthly_spend": 515.0,  # Typical: 500 + 20 = 520
+                "purchase_frequency": 0.84  # Typical: 0.8 + 0.05 = 0.85
+            },
+            "data_points": 20
+        }
+
+        axis_anomaly = await engine._detect_axis_anomaly(
+            db=Mock(),
+            player_id="test_player",
+            game_id="test_game",
+            axis_name="monetization",
+            segment_id=1,
+            current_data=current_data,
+            membership=mock_membership,
+            context="weekday",
+            lookback_days=90
+        )
+
+        # Should NOT be anomalous (close to typical)
+        assert not axis_anomaly.is_anomalous
+        assert axis_anomaly.anomaly_score < 0.5
+
+    @pytest.mark.asyncio
+    async def test_sudden_drop_is_anomalous(self, mock_membership, mock_segment):
+        """Test that sudden behavioral change is flagged as anomalous."""
+        engine = UnifiedAnomalyDetectionEngine()
+
+        # Current data much lower than typical
+        current_data = {
+            "metrics": {
+                "monthly_spend": 50.0,  # Typical: 520, huge drop!
+                "purchase_frequency": 0.1  # Typical: 0.85, huge drop!
+            },
+            "data_points": 20
+        }
+
+        with patch.object(engine, '_load_segment_definition', return_value=mock_segment):
+            axis_anomaly = await engine._detect_axis_anomaly(
+                db=Mock(),
+                player_id="test_player",
+                game_id="test_game",
+                axis_name="monetization",
+                segment_id=1,
+                current_data=current_data,
+                membership=mock_membership,
+                context="weekday",
+                lookback_days=90
+            )
+
+        # Should be highly anomalous
+        assert axis_anomaly.is_anomalous
+        assert axis_anomaly.anomaly_score > 0.7
+
+    @pytest.mark.asyncio
+    async def test_contextual_threshold_adjustment(self):
+        """Test that thresholds adjust based on context (weekday/weekend)."""
+        engine = UnifiedAnomalyDetectionEngine()
+
+        # Temporal axis - more lenient on weekends
+        base_threshold = engine.AXIS_THRESHOLDS["temporal"]  # 3.0
+
+        # Weekday multiplier
+        weekday_multiplier = engine.CONTEXT_MULTIPLIERS["weekday"]["default"]  # 1.0
+        weekday_threshold = base_threshold * weekday_multiplier
+
+        # Weekend multiplier
+        weekend_multiplier = engine.CONTEXT_MULTIPLIERS["weekend"]["temporal"]  # 1.5
+        weekend_threshold = base_threshold * weekend_multiplier
+
+        assert weekend_threshold > weekday_threshold  # More lenient on weekends
+
+    def test_mahalanobis_distance_with_covariance(self):
+        """Test Mahalanobis distance accounts for correlation."""
+        engine = UnifiedAnomalyDetectionEngine()
+
+        player_position = {"metric_a": 10.0, "metric_b": 20.0}
+        segment_center = {"metric_a": 5.0, "metric_b": 15.0}
+
+        # Covariance matrix showing correlation
+        covariance = {
+            "metric_a_metric_a": 4.0,
+            "metric_a_metric_b": 2.0,  # Positive correlation
+            "metric_b_metric_a": 2.0,
+            "metric_b_metric_b": 9.0
+        }
+
+        std_devs = {"metric_a": 2.0, "metric_b": 3.0}
+
+        distance = engine._calculate_mahalanobis_distance(
+            player_position,
+            segment_center,
+            covariance,
+            std_devs
+        )
+
+        # Should be finite positive number
+        assert distance > 0.0
+        assert np.isfinite(distance)
+
+    def test_overall_anomaly_aggregation(self):
+        """Test aggregation of axis-level anomalies into overall score."""
+        engine = UnifiedAnomalyDetectionEngine()
+
+        axis_anomalies = {
+            "monetization": AxisAnomaly(
+                axis_name="monetization",
+                segment_name="whale",
+                current_distance=3.5,
+                typical_distance=0.5,
+                distance_delta=3.0,
+                anomaly_score=0.9,  # High
+                is_anomalous=True,
+                threshold_used=2.5
+            ),
+            "engagement": AxisAnomaly(
+                axis_name="engagement",
+                segment_name="hardcore",
+                current_distance=1.0,
+                typical_distance=0.8,
+                distance_delta=0.2,
+                anomaly_score=0.1,  # Low
+                is_anomalous=False,
+                threshold_used=2.0
+            )
+        }
+
+        overall_score = engine._calculate_overall_anomaly_score(axis_anomalies)
+
+        # Should be weighted toward high anomaly (monetization is critical)
+        assert overall_score > 0.5
+
+
+# ==================== Integration Adapter Tests ====================
+
+class TestUnifiedIntegrationAdapter:
+    """Test backward compatibility and rollout logic."""
+
+    @pytest.mark.asyncio
+    async def test_parallel_mode_uses_legacy(self):
+        """Test that PARALLEL_ONLY mode uses legacy system."""
+        adapter = UnifiedIntegrationAdapter(
+            rollout_strategy="parallel_only",
+            rollout_percentage=0.0
+        )
+
+        # Mock legacy method
+        adapter._get_profile_legacy = AsyncMock(return_value={"system": "legacy"})
+        adapter._get_profile_unified = AsyncMock(return_value={"system": "unified"})
+
+        profile = await adapter.get_player_behavioral_profile("player_1", "game_1")
+
+        # Should use legacy
+        assert profile["system"] == "legacy"
+        adapter._get_profile_legacy.assert_called_once()
+        adapter._get_profile_unified.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_full_rollout_uses_unified(self):
+        """Test that FULL_ROLLOUT mode uses unified system."""
+        adapter = UnifiedIntegrationAdapter(
+            rollout_strategy="full_rollout",
+            rollout_percentage=1.0
+        )
+
+        adapter._get_profile_legacy = AsyncMock(return_value={"system": "legacy"})
+        adapter._get_profile_unified = AsyncMock(return_value={"system": "unified"})
+
+        profile = await adapter.get_player_behavioral_profile("player_1", "game_1")
+
+        # Should use unified
+        assert profile["system"] == "unified"
+        adapter._get_profile_unified.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_gradual_rollout_percentage(self):
+        """Test that gradual rollout respects percentage."""
+        adapter = UnifiedIntegrationAdapter(
+            rollout_strategy="gradual_rollout",
+            rollout_percentage=0.5  # 50%
+        )
+
+        adapter._get_profile_legacy = AsyncMock(return_value={"system": "legacy"})
+        adapter._get_profile_unified = AsyncMock(return_value={"system": "unified"})
+
+        # Run 100 times, should be roughly 50/50
+        results = []
+        for i in range(100):
+            with patch('random.random', return_value=i / 100.0):
+                profile = await adapter.get_player_behavioral_profile(f"player_{i}", "game_1")
+                results.append(profile["system"])
+
+        unified_count = results.count("unified")
+        legacy_count = results.count("legacy")
+
+        # Should be roughly 50/50 (±10)
+        assert 40 <= unified_count <= 60
+        assert 40 <= legacy_count <= 60
+
+    @pytest.mark.asyncio
+    async def test_force_unified_override(self):
+        """Test that force_unified overrides rollout strategy."""
+        adapter = UnifiedIntegrationAdapter(
+            rollout_strategy="old_system",  # Should always use legacy
+            rollout_percentage=0.0
+        )
+
+        adapter._get_profile_legacy = AsyncMock(return_value={"system": "legacy"})
+        adapter._get_profile_unified = AsyncMock(return_value={"system": "unified"})
+
+        # But force_unified should override
+        profile = await adapter.get_player_behavioral_profile(
+            "player_1",
+            "game_1",
+            force_unified=True
+        )
+
+        assert profile["system"] == "unified"
+
+    @pytest.mark.asyncio
+    async def test_backward_compatible_structure(self):
+        """Test that unified system returns backward-compatible structure."""
+        adapter = UnifiedIntegrationAdapter(rollout_strategy="full_rollout")
+
+        # Mock unified profile
+        mock_unified_profile = PlayerBehavioralProfile(
+            player_id="player_1",
+            game_id="game_1",
+            primary_segments={"monetization": "whale"},
+            ai_optimized_segments=["whale", "hardcore_grinder"],
+            all_memberships={},
+            variance_explained=0.82,
+            confidence=0.88,
+            last_updated=datetime.utcnow()
+        )
+
+        with patch.object(
+            adapter.categorization_engine,
+            'categorize_player',
+            return_value=mock_unified_profile
+        ):
+            profile = await adapter._get_profile_unified("player_1", "game_1")
+
+        # Verify backward-compatible fields
+        assert "player_id" in profile
+        assert "primary_segments" in profile
+        assert "segment_scores" in profile
+        assert "behavioral_baseline" in profile
+        assert "confidence" in profile
+        assert "timestamp" in profile
+
+
+# ==================== Migration Validation Tests ====================
+
+class TestMigrationValidator:
+    """Test mathematical equivalence validation."""
+
+    @pytest.mark.asyncio
+    async def test_profile_equivalence_validation(self):
+        """Test validation of profile equivalence between systems."""
+        validator = MigrationValidator()
+
+        # Mock both systems with equivalent profiles
+        validator.adapter._get_profile_legacy = AsyncMock(return_value={
+            "primary_segments": ["whale", "competitive_grinder"],
+            "behavioral_baseline": {"monthly_spend": 500.0, "avg_daily_sessions": 5.2},
+            "confidence": 0.85
+        })
+
+        validator.adapter._get_profile_unified = AsyncMock(return_value={
+            "primary_segments": ["whale", "competitive_grinder"],
+            "behavioral_baseline": {"monthly_spend": 505.0, "avg_daily_sessions": 5.1},
+            "confidence": 0.87
+        })
+
+        result = await validator.validate_profile_equivalence("player_1", "game_1")
+
+        # Should be equivalent (within tolerance)
+        assert result["equivalent"]
+        assert result["similarity_score"] > 0.90
+        assert len(result["differences"]) == 0  # Minor differences ignored
+
+    @pytest.mark.asyncio
+    async def test_detects_significant_differences(self):
+        """Test that validator detects significant differences."""
+        validator = MigrationValidator()
+
+        # Mock systems with different results
+        validator.adapter._get_profile_legacy = AsyncMock(return_value={
+            "primary_segments": ["whale"],
+            "behavioral_baseline": {"monthly_spend": 500.0},
+            "confidence": 0.85
+        })
+
+        validator.adapter._get_profile_unified = AsyncMock(return_value={
+            "primary_segments": ["free_to_play"],  # Different!
+            "behavioral_baseline": {"monthly_spend": 5.0},  # Very different!
+            "confidence": 0.87
+        })
+
+        result = await validator.validate_profile_equivalence("player_1", "game_1")
+
+        # Should NOT be equivalent
+        assert not result["equivalent"]
+        assert result["similarity_score"] < 0.70
+        assert len(result["differences"]) > 0
+
+
+# ==================== Run Tests ====================
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])

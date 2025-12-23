@@ -1,0 +1,25 @@
+{
+  "id": 999998,
+  "subject": "Incoming call",
+  "messages": [
+    {
+      "id": 9999981,
+      "body_html": "<p>Incoming call - no voicemail left</p>",
+      "body_text": "Incoming call - no voicemail left",
+      "from_agent": false,
+      "via": "phone",
+      "channel": "phone",
+      "source": {
+        "type": "phone"
+      }
+    }
+  ],
+  "customer": {
+    "id": 123456,
+    "email": "customer@example.com",
+    "name": "Test Customer",
+    "phone": "+19725424000"
+  },
+  "via": "phone",
+  "channel": "phone"
+}

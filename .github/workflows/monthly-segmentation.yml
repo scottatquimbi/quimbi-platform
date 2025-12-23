@@ -1,0 +1,161 @@
+name: Monthly Customer Segmentation
+
+on:
+  schedule:
+    # Run on 1st of month at 2 AM UTC
+    - cron: '0 2 1 * *'
+
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      sample_size:
+        description: 'Number of customers for pattern discovery'
+        required: false
+        default: '5000'
+      batch_size:
+        description: 'Batch size for assignment'
+        required: false
+        default: '10000'
+
+jobs:
+  segment-customers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2 hours max
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download CSV data
+        run: |
+          # TODO: Replace with actual data source
+          # For now, assumes CSV is in repo or fetched from S3/GCS
+          echo "CSV data should be available at product_sales_order.csv"
+          ls -lh *.csv || echo "No CSV files found - may need to fetch from storage"
+
+      - name: Run efficient segmentation
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          SAMPLE_SIZE=${{ github.event.inputs.sample_size || '5000' }}
+          BATCH_SIZE=${{ github.event.inputs.batch_size || '10000' }}
+
+          echo "Starting segmentation with sample_size=$SAMPLE_SIZE, batch_size=$BATCH_SIZE"
+
+          python3 scripts/load_efficient_segments_to_db.py \
+            --csv-path product_sales_order.csv \
+            --sample-size $SAMPLE_SIZE \
+            --batch-size $BATCH_SIZE \
+            2>&1 | tee segmentation.log
+
+      - name: Generate validation report
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "Generating validation report..."
+          python3 scripts/validate_segments.py 2>&1 | tee validation.log
+
+      - name: Generate segment names (optional)
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        continue-on-error: true
+        run: |
+          echo "Generating segment names..."
+          python3 scripts/generate_segment_names.py 2>&1 | tee naming.log
+
+      - name: Query final statistics
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python3 - <<EOF
+          import os
+          import asyncio
+          import asyncpg
+
+          async def get_stats():
+              conn = await asyncpg.connect(os.getenv('DATABASE_URL'))
+
+              # Overall stats
+              result = await conn.fetchrow('''
+                  SELECT
+                      COUNT(*) as total,
+                      COUNT(CASE WHEN segment_memberships <> '{}' THEN 1 END) as with_segments
+                  FROM customer_profiles
+              ''')
+
+              print(f"✅ Total customers: {result['total']:,}")
+              print(f"✅ Customers with segments: {result['with_segments']:,}")
+              print(f"✅ Segmentation rate: {result['with_segments']/result['total']*100:.1f}%")
+
+              # Axes
+              result = await conn.fetch('''
+                  SELECT DISTINCT jsonb_object_keys(segment_memberships) as axis
+                  FROM customer_profiles
+                  WHERE segment_memberships <> '{}'
+              ''')
+
+              print(f"✅ Axes: {len(result)}")
+
+              await conn.close()
+
+          asyncio.run(get_stats())
+          EOF
+
+      - name: Upload logs as artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: segmentation-logs-${{ github.run_number }}
+          path: |
+            segmentation.log
+            validation.log
+            naming.log
+            segment_validation_*.txt
+            segment_names.json
+          retention-days: 30
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Segmentation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Run Date:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f segmentation.log ]; then
+              echo "### Segmentation Output" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              tail -50 segmentation.log >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -f validation.log ]; then
+              echo "### Validation Report" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              tail -30 validation.log >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Segmentation failed!"
+          echo "Check the logs for details."
+          # TODO: Add Slack/email notification here
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"Segmentation failed!"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}

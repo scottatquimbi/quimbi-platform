@@ -1,0 +1,25 @@
+{
+  "id": 999999,
+  "subject": "New voicemail from ERCO ENERGA - Customer Service",
+  "messages": [
+    {
+      "id": 9999991,
+      "body_html": "<p><strong>From:</strong> ERCO ENERGA - Customer Service (601) 508-8663<br><strong>To:</strong> (972) 542-4000 * 104 Summer Leisure<br><strong>Length:</strong> 00:17</p><p>Listen to this message over your phone or log in to your RingCentral account.</p>",
+      "body_text": "From: ERCO ENERGA - Customer Service (601) 508-8663\nTo: (972) 542-4000 * 104 Summer Leisure\nLength: 00:17\n\nListen to this message over your phone or log in to your RingCentral account.",
+      "from_agent": false,
+      "via": "email",
+      "channel": "email",
+      "source": {
+        "type": "email"
+      }
+    }
+  ],
+  "customer": {
+    "id": 99999999,
+    "email": "noreply@ringcentral.com",
+    "name": "ERCO ENERGA - Customer Service",
+    "phone": "+16015088663"
+  },
+  "via": "email",
+  "channel": "email"
+}

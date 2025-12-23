@@ -1,0 +1,32 @@
+{
+  "id": 777777,
+  "subject": "Question about my order",
+  "status": "open",
+  "channel": "email",
+  "via": "email",
+  "messages": [
+    {
+      "id": 7777771,
+      "body_html": "<p>Hi,</p><p>I placed an order last week and haven't received a shipping confirmation yet. Can you check on the status?</p><p>Thanks,<br>Pamela</p>",
+      "body_text": "Hi,\n\nI placed an order last week and haven't received a shipping confirmation yet. Can you check on the status?\n\nThanks,\nPamela",
+      "from_agent": false,
+      "via": "email",
+      "channel": "email",
+      "source": {
+        "type": "email"
+      },
+      "created_datetime": "2025-11-07T23:00:00Z"
+    }
+  ],
+  "customer": {
+    "id": 7977067151615,
+    "email": "pamela@example.com",
+    "name": "Pamela Tornow",
+    "phone": "",
+    "meta": {
+      "shopify_customer_id": "7977067151615"
+    }
+  },
+  "tags": [],
+  "created_datetime": "2025-11-07T23:00:00Z"
+}

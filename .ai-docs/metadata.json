@@ -1,0 +1,286 @@
+{
+  "repository": {
+    "name": "Unified Behavioral Segmentation System - AI Documentation",
+    "version": "2.0.0",
+    "last_updated": "2025-10-13",
+    "purpose": "Structured documentation for AI systems",
+    "system_status": {
+      "core_implementation": "complete",
+      "test_data": "incompatible",
+      "deployment": "ready"
+    }
+  },
+  "structure": {
+    "architecture": {
+      "description": "Design documents and architectural decisions",
+      "files": [
+        {
+          "name": "AFFORDANCE_BASED_TAXONOMY.md",
+          "purpose": "Core design philosophy",
+          "complexity": "high",
+          "lines": 400,
+          "key_concepts": ["affordance_discovery", "event_clustering", "fuzzy_membership"],
+          "required_reading": true
+        },
+        {
+          "name": "WHY_CURRENT_SYSTEM_FAILS.md",
+          "purpose": "Original problem analysis",
+          "complexity": "medium",
+          "lines": 200,
+          "key_concepts": ["hardcoded_axes", "population_vs_individual"],
+          "status": "historical"
+        },
+        {
+          "name": "FUZZY_MEMBERSHIP_EXPLAINED.md",
+          "purpose": "Mathematical foundation",
+          "complexity": "high",
+          "lines": 300,
+          "key_concepts": ["mahalanobis_distance", "gaussian_decay", "multi_membership"],
+          "required_reading": true
+        },
+        {
+          "name": "ENGAGEMENT_GRAPH_PROPOSAL.md",
+          "purpose": "Future enhancement",
+          "complexity": "high",
+          "lines": 500,
+          "key_concepts": ["sequence_mining", "event_graphs", "journey_tracking"],
+          "status": "proposed"
+        }
+      ]
+    },
+    "api": {
+      "description": "API documentation and deployment guides",
+      "files": [
+        {
+          "name": "API_DOCUMENTATION.md",
+          "purpose": "Complete REST API reference",
+          "complexity": "high",
+          "lines": 1100,
+          "api_version": "2.0.0",
+          "endpoints": 16,
+          "required_reading": true
+        },
+        {
+          "name": "RAILWAY_SETUP.md",
+          "purpose": "Railway deployment configuration",
+          "complexity": "medium",
+          "lines": 400,
+          "key_concepts": ["railway_deployment", "postgresql_setup", "environment_variables"]
+        },
+        {
+          "name": "DEPLOYMENT_GUIDE.md",
+          "purpose": "Comprehensive deployment instructions",
+          "complexity": "medium",
+          "lines": 600,
+          "key_concepts": ["docker", "aws_ecs", "railway", "monitoring"]
+        }
+      ]
+    },
+    "guides": {
+      "description": "User and developer guides",
+      "files": [
+        {
+          "name": "TESTING_GUIDE.md",
+          "purpose": "Testing instructions",
+          "complexity": "medium",
+          "lines": 500,
+          "key_concepts": ["granular_events", "test_data_generation", "api_testing"],
+          "required_reading": true
+        },
+        {
+          "name": "MIGRATION_GUIDE.md",
+          "purpose": "Migration from hardcoded to affordance-based",
+          "complexity": "medium",
+          "lines": 600,
+          "key_concepts": ["parallel_running", "shadow_mode", "gradual_rollout"]
+        },
+        {
+          "name": "TEMPORAL_JOURNEY_TRACKING.md",
+          "purpose": "Tracking player journeys over time",
+          "complexity": "high",
+          "lines": 400,
+          "key_concepts": ["temporal_drift", "journey_stages", "churn_prediction"]
+        }
+      ]
+    },
+    "implementation": {
+      "description": "Technical implementation details",
+      "files": [
+        {
+          "name": "DEVELOPMENT_SUMMARY.md",
+          "purpose": "Initial affordance discovery implementation",
+          "complexity": "medium",
+          "lines": 600,
+          "key_concepts": ["affordance_discovery_engine", "api_endpoints", "bug_fixes"],
+          "implementation_date": "2025-10-13",
+          "required_reading": true
+        },
+        {
+          "name": "SEGMENT_DISCOVERY_SUMMARY.md",
+          "purpose": "Segment discovery implementation",
+          "complexity": "medium",
+          "lines": 600,
+          "key_concepts": ["segment_clustering", "fuzzy_membership", "kmeans"],
+          "implementation_date": "2025-10-13",
+          "required_reading": true
+        },
+        {
+          "name": "PACKAGE_SUMMARY.md",
+          "purpose": "System overview and deployment package",
+          "complexity": "medium",
+          "lines": 600,
+          "key_concepts": ["system_overview", "core_components", "deployment_options"],
+          "required_reading": true
+        },
+        {
+          "name": "NEXT_STEPS_SUMMARY.md",
+          "purpose": "Original problem statement",
+          "complexity": "low",
+          "lines": 100,
+          "status": "historical"
+        }
+      ]
+    },
+    "analysis": {
+      "description": "Data analysis and compatibility studies",
+      "files": [
+        {
+          "name": "RAILWAY_TEST_DATA_ANALYSIS.md",
+          "purpose": "Test data compatibility analysis",
+          "complexity": "high",
+          "lines": 1100,
+          "key_concepts": ["data_requirements", "granular_vs_aggregated", "test_data_generation"],
+          "criticality": "high",
+          "required_reading": true
+        }
+      ]
+    }
+  },
+  "workflows": {
+    "understanding_system": {
+      "description": "For understanding the system architecture and design",
+      "steps": [
+        "implementation/PACKAGE_SUMMARY.md",
+        "architecture/AFFORDANCE_BASED_TAXONOMY.md",
+        "api/API_DOCUMENTATION.md"
+      ]
+    },
+    "implementation_work": {
+      "description": "For working on implementation",
+      "steps": [
+        "implementation/DEVELOPMENT_SUMMARY.md",
+        "implementation/SEGMENT_DISCOVERY_SUMMARY.md",
+        "guides/TESTING_GUIDE.md"
+      ]
+    },
+    "deployment": {
+      "description": "For deploying the system",
+      "steps": [
+        "api/DEPLOYMENT_GUIDE.md",
+        "api/RAILWAY_SETUP.md",
+        "guides/MIGRATION_GUIDE.md"
+      ]
+    },
+    "data_requirements": {
+      "description": "For understanding data format requirements",
+      "critical": true,
+      "steps": [
+        "analysis/RAILWAY_TEST_DATA_ANALYSIS.md",
+        "guides/TESTING_GUIDE.md",
+        "api/API_DOCUMENTATION.md"
+      ]
+    }
+  },
+  "key_concepts": {
+    "affordance": {
+      "definition": "A discoverable product feature that players can engage with",
+      "examples": ["progression", "combat", "economy", "social"],
+      "source": "architecture/AFFORDANCE_BASED_TAXONOMY.md"
+    },
+    "segment": {
+      "definition": "A cluster of players with similar engagement levels within an affordance",
+      "examples": ["progression_high", "combat_medium", "economy_low"],
+      "source": "implementation/SEGMENT_DISCOVERY_SUMMARY.md"
+    },
+    "fuzzy_membership": {
+      "definition": "Players belong to ALL segments with varying strengths (0.0-1.0)",
+      "formula": "membership = exp(-distance² / (2σ²))",
+      "source": "architecture/FUZZY_MEMBERSHIP_EXPLAINED.md"
+    },
+    "granular_events": {
+      "definition": "Specific event types required for affordance discovery",
+      "examples": ["mission_start", "combat_encounter", "item_crafted"],
+      "required": true,
+      "source": "analysis/RAILWAY_TEST_DATA_ANALYSIS.md"
+    },
+    "aggregated_events": {
+      "definition": "Summary statistics that cannot be used for affordance discovery",
+      "examples": ["daily_activity"],
+      "compatible": false,
+      "source": "analysis/RAILWAY_TEST_DATA_ANALYSIS.md"
+    }
+  },
+  "critical_warnings": [
+    {
+      "type": "data_incompatibility",
+      "severity": "high",
+      "message": "Existing Railway test data uses aggregated events (daily_activity). Affordance discovery requires granular event types.",
+      "source": "analysis/RAILWAY_TEST_DATA_ANALYSIS.md",
+      "solutions": [
+        "Generate new test data with granular events",
+        "Transform existing data to granular events",
+        "Use old hardcoded axis system (deprecated)"
+      ]
+    },
+    {
+      "type": "event_type_diversity",
+      "severity": "high",
+      "message": "Need at least 10-20 distinct event types for meaningful affordance discovery",
+      "source": "guides/TESTING_GUIDE.md"
+    }
+  ],
+  "api_endpoints": {
+    "affordance_discovery": [
+      "POST /api/v1/affordances/discover",
+      "GET /api/v1/affordances/{game_id}",
+      "POST /api/v1/affordances/player/profile"
+    ],
+    "segment_discovery": [
+      "POST /api/v1/affordances/segments/discover",
+      "GET /api/v1/affordances/segments/{game_id}",
+      "POST /api/v1/affordances/segments/player/memberships"
+    ],
+    "legacy_system": [
+      "POST /api/v1/segmentation/taxonomy/calibrate",
+      "POST /api/v1/segmentation/categorize",
+      "POST /api/v1/segmentation/anomalies/detect"
+    ]
+  },
+  "code_files": {
+    "core_engines": [
+      "backend/core/affordance_discovery_engine.py",
+      "backend/core/affordance_segmentation_engine.py",
+      "backend/core/taxonomy_calibration_engine.py",
+      "backend/core/adaptive_behavioral_categorization.py"
+    ],
+    "api_endpoints": [
+      "backend/api/affordance_api.py",
+      "backend/api/data_ingestion.py"
+    ]
+  },
+  "database_tables": [
+    "player_behavior_events",
+    "game_behavioral_taxonomy",
+    "behavioral_axes",
+    "segment_definitions",
+    "player_segment_memberships"
+  ],
+  "required_reading_order": [
+    "implementation/PACKAGE_SUMMARY.md",
+    "analysis/RAILWAY_TEST_DATA_ANALYSIS.md",
+    "architecture/AFFORDANCE_BASED_TAXONOMY.md",
+    "implementation/DEVELOPMENT_SUMMARY.md",
+    "implementation/SEGMENT_DISCOVERY_SUMMARY.md",
+    "api/API_DOCUMENTATION.md"
+  ]
+}

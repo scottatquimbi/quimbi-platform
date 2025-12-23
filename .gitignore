@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+*.egg
+.tox/
+.venv/
+venv/
+ENV/
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.log
+check_production_env.sh
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.bak2
+*.bak3
+*.backup
+*.before_cleanup
+main.py.bak*
+main.py.backup*
+main.py.before*
+
+# Temp files & output
+temp/
+tmp/
+*.tmp
+/tmp/
+migration_backup/
+backup_current/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keep these
+!.gitkeep
+!.env.example
+backend/api/auth.py
